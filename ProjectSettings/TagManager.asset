@@ -17,6 +17,8 @@ TagManager:
   - Seed
   - PlantSoil
   - Fairy
+  - CompoundX
+  - Pot
   layers:
   - Default
   - TransparentFX

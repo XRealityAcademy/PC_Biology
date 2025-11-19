@@ -79,7 +79,7 @@
       "depth": 0,
       "source": "builtin",
       "dependencies": {
-        "com.unity.xr.interaction.toolkit": "3.1.2",
+        "com.unity.xr.interaction.toolkit": "3.3.0",
         "com.unity.xr.oculus": "4.5.2",
         "com.unity.xr.openxr": "1.14.3"
       }
@@ -331,7 +331,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.xr.hands": {
-      "version": "1.5.1",
+      "version": "1.6.1",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -344,7 +344,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.xr.interaction.toolkit": {
-      "version": "3.1.2",
+      "version": "3.3.0",
       "depth": 0,
       "source": "registry",
       "dependencies": {

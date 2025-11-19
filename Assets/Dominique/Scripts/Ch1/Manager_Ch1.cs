@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using TMPro;
 
 public class Manager_Ch1 : MonoBehaviour
@@ -18,6 +19,13 @@ public class Manager_Ch1 : MonoBehaviour
 
     [Tooltip("Tag used by the watering trigger zone (legacy OnTriggerEnter on THIS Manager).")]
     public string wateringTriggerTag = "WaterZone";
+
+    [Header("Scene Transition")]
+    [Tooltip("Scene name to load after dialog 11 finishes (e.g., 'chapter 3')")]
+    public string nextSceneName = "chapter 3";
+    
+    [Tooltip("Delay in seconds before switching scenes after dialog 11 finishes")]
+    public float sceneSwitchDelay = 2f;
 
     /* === Strict per-pot seeding (does NOT change 0–9) === */
     [Header("Strict Seeding (exactly 6 unique pots)")]
@@ -55,7 +63,6 @@ public class Manager_Ch1 : MonoBehaviour
 
 
     /*──────── Progress State ─────*/
-    int seedsPlacedCount = 0;            // legacy counter (kept but unused in strict mode)
     bool waitingForSeeds = false;        // becomes true after index 10 finishes
     bool waitingForWater = false;        // becomes true after index 12 finishes
 
@@ -119,6 +126,19 @@ public class Manager_Ch1 : MonoBehaviour
     /*──────── Public API (kept) ─────────*/
     public void PlayDialogByIndex(int index) => TryPlay(index);
 
+    /// <summary>
+    /// Force play a dialog index, bypassing order checks (useful for grab-triggered dialogs)
+    /// </summary>
+    public void ForcePlayDialogByIndex(int index)
+    {
+        if (index < 0 || index >= played.Length || played[index]) return;
+
+        // Show corresponding item outline for Dialog 5–10 (indices 4..9)
+        if (index >= 4 && index <= 9) SwitchOutline(index - 4);
+
+        StartCoroutine(PlayLine(index));
+    }
+
     /// Legacy seed callback (kept for backward compatibility)
     public void NotifySeedPlaced()
         => Debug.LogWarning("NotifySeedPlaced() legacy call ignored. Use SeedPotTrigger per pot.");
@@ -126,23 +146,38 @@ public class Manager_Ch1 : MonoBehaviour
     /// Strict per-pot version — counts UNIQUE pots. Call from SeedPotTrigger.
     public void NotifySeedPlaced(SeedPotTrigger pot)
     {
-        if (!waitingForSeeds || pot == null) return;
+        Debug.Log($"[Manager_Ch1] NotifySeedPlaced called. waitingForSeeds: {waitingForSeeds}, pot: {(pot != null ? pot.name : "null")}");
+        
+        if (!waitingForSeeds || pot == null)
+        {
+            Debug.Log($"[Manager_Ch1] NotifySeedPlaced: Skipping - waitingForSeeds={waitingForSeeds}, pot is null={pot == null}");
+            return;
+        }
 
         bool recognized = false;
         for (int i = 0; i < seedPots.Length; i++)
             if (seedPots[i] == pot) { recognized = true; break; }
-        if (!recognized) return;
+        
+        if (!recognized)
+        {
+            Debug.Log($"[Manager_Ch1] NotifySeedPlaced: Pot {pot.name} not recognized in seedPots array");
+            return;
+        }
 
         if (uniqueSeededPots.Add(pot))
         {
+            Debug.Log($"[Manager_Ch1] Seed placed in pot {pot.name}. Total seeded pots: {uniqueSeededPots.Count}/{requiredSeedPots}");
+            
             if (uniqueSeededPots.Count >= requiredSeedPots)  // typically 6
             {
+                Debug.Log($"[Manager_Ch1] All {requiredSeedPots} seeds placed! Setting waitingForWater = true");
                 waitingForSeeds = false;
                 waitingForWater = true;   // switch to watering phase; do not play 11 yet
 
                 // If the player already watered early, honor it now.
                 if (waterDoneEarly)
                 {
+                    Debug.Log($"[Manager_Ch1] Water was done early, triggering dialog 11 now");
                     waterDoneEarly = false;
                     waitingForWater = false;
                     TryPlay(11);
@@ -150,21 +185,38 @@ public class Manager_Ch1 : MonoBehaviour
                 }
             }
         }
+        else
+        {
+            Debug.Log($"[Manager_Ch1] Pot {pot.name} already had a seed (duplicate ignored)");
+        }
     }
 
     /// Watering done (kept API). Called by WateringZoneTrigger below.
     public void NotifyWateringDone()
     {
-        if (waitingForWater)
+        Debug.Log($"[Manager_Ch1] NotifyWateringDone called. Seeded pots: {uniqueSeededPots.Count}/{requiredSeedPots}, waitingForSeeds: {waitingForSeeds}, waitingForWater: {waitingForWater}");
+        
+        // Check if all required seeds are placed
+        if (uniqueSeededPots.Count >= requiredSeedPots)
         {
+            Debug.Log($"[Manager_Ch1] All seeds placed! Triggering dialog 11");
+            // All seeds are placed - trigger dialog 11
             waitingForWater = false;
+            waitingForSeeds = false;
             TryPlay(11); // jump to index 11
+        }
+        else if (waitingForSeeds)
+        {
+            Debug.Log($"[Manager_Ch1] Watering happened early (only {uniqueSeededPots.Count}/{requiredSeedPots} seeds placed). Remembering for later.");
+            // Watering happened before all seeds are placed - remember it
+            waterDoneEarly = true;
         }
         else
         {
-            // Watering came early; remember it so seeding completion can advance to 11
-            waterDoneEarly = true;
+            Debug.LogWarning($"[Manager_Ch1] NotifyWateringDone: Not enough seeds placed ({uniqueSeededPots.Count}/{requiredSeedPots}) and not waiting for seeds. Dialog 11 will not trigger.");
         }
+        // If waitingForWater is true but seed count is wrong, something is out of sync
+        // In that case, don't trigger (seeds must be placed first)
     }
 
     /*──────── Collision Hooks ─────*/
@@ -262,11 +314,9 @@ public class Manager_Ch1 : MonoBehaviour
             if (uniqueSeededPots.Count >= requiredSeedPots)
             {
                 waitingForSeeds = false;
-
+                waitingForWater = true;
             }
             // TryPlay(11);
-
-              //  waitingForWater = true;
 
             // If watering happened early, advance now to 11
             //     if (waterDoneEarly)
@@ -287,9 +337,16 @@ public class Manager_Ch1 : MonoBehaviour
             //     yield break; // optional
             // }
         }
-        else if (idx >= 11 && idx < TOTAL - 1)
+        else if (idx == 11)
+        {
+            // Dialog 11 is the last dialog - switch scenes after delay
+            Debug.Log($"[Manager_Ch1] Dialog 11 finished. Switching to scene '{nextSceneName}' in {sceneSwitchDelay} seconds.");
+            StartCoroutine(SwitchSceneAfterDelay());
+        }
+        else if (idx > 11 && idx < TOTAL - 1)
         {
             // After idx finishes (and its delay runs), queue the next index
+            // This should not be reached if we stop at 11, but kept for safety
             StartCoroutine(PlayAfterDelay(idx + 1, 0f)); // no second delay
         }
 
@@ -300,6 +357,28 @@ public class Manager_Ch1 : MonoBehaviour
     {
         yield return new WaitForSeconds(seconds);
         TryPlay(index);
+    }
+
+    IEnumerator SwitchSceneAfterDelay()
+    {
+        yield return new WaitForSeconds(sceneSwitchDelay);
+        
+        Debug.Log($"[Manager_Ch1] Loading scene: {nextSceneName}");
+        
+        if (string.IsNullOrEmpty(nextSceneName))
+        {
+            Debug.LogError("[Manager_Ch1] Next scene name is empty! Cannot switch scenes.");
+            yield break;
+        }
+        
+        try
+        {
+            SceneManager.LoadScene(nextSceneName);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[Manager_Ch1] Failed to load scene '{nextSceneName}': {e.Message}");
+        }
     }
 
 
