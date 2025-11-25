@@ -11,12 +11,20 @@ public class SnapSlot : MonoBehaviour
     [SerializeField] private float snapDuration = 0.25f;
     [SerializeField] private Vector3 localOffset = Vector3.zero;
 
+    [Header("Manager Reference")]
+    [Tooltip("Reference to SnapGameManager. If null, will auto-find one in the scene.")]
+    [SerializeField] private SnapGameManager snapManager;
+
     public bool Occupied { get; private set; }
 
     void Awake()
     {
         var col = GetComponent<BoxCollider>();
         col.isTrigger = true;                         // socket is trigger‑only
+        
+        // Auto-find manager if not assigned
+        if (!snapManager)
+            snapManager = FindFirstObjectByType<SnapGameManager>();
     }
 
     void OnTriggerEnter(Collider other)
@@ -50,7 +58,10 @@ public class SnapSlot : MonoBehaviour
 
         Occupied = true;
         box.MarkSnapped();
-        SnapGameManager.FlagSlotFilled();  // optional win counter
+        
+        // Notify manager if available
+        if (snapManager)
+            snapManager.FlagSlotFilled();
     }
 
     /// <summary>Called if you ever decide to unsnap.</summary>

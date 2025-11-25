@@ -6,15 +6,19 @@ public class SnapGameManager : MonoBehaviour
     [SerializeField] private int totalSlots = 6;
     [SerializeField] private UnityEvent onAllSnapped;
 
-    static SnapGameManager inst;
+    // Removed static instance to prevent conflicts between scenes
+    // Each scene's SnapGameManager will work independently
     int filled;
 
-    void Awake() => inst = this;
-
-    public static void FlagSlotFilled()
+    void Awake()
     {
-        if (inst == null) return;
-        if (++inst.filled >= inst.totalSlots)
-            inst.onAllSnapped?.Invoke();
+        // Reset state when scene loads (in case of additive loading)
+        filled = 0;
+    }
+
+    public void FlagSlotFilled()
+    {
+        if (++filled >= totalSlots)
+            onAllSnapped?.Invoke();
     }
 }

@@ -21,19 +21,35 @@ public class WateringZoneTrigger : MonoBehaviour
 
     void Awake()
     {
-        if (!manager) manager = FindObjectOfType<Manager_Ch1>();
+        if (!manager) manager = FindFirstObjectByType<Manager_Ch1>();
     }
 
     void OnTriggerEnter(Collider other)
     {
-        // Only respond to the water can tip mesh/cube
-        if (fired) return;
-        if (!other.CompareTag(acceptedTag)) return;
+        Debug.Log($"[WateringZoneTrigger] OnTriggerEnter: {other.name} (Tag: {other.tag}), fired: {fired}, acceptedTag: {acceptedTag}");
+        
+        if (!other.CompareTag(acceptedTag))
+        {
+            Debug.Log($"[WateringZoneTrigger] Tag mismatch. Expected '{acceptedTag}', got '{other.tag}'");
+            return;
+        }
 
-        fired = true;
+        Debug.Log($"[WateringZoneTrigger] Water can tip detected! Calling NotifyWateringDone()");
 
         // Tell your existing manager: watering is done → jump to 13
         // (This uses the method name from your current Manager_Ch1.)
-        if (manager) manager.NotifyWateringDone();
+        if (manager)
+        {
+            manager.NotifyWateringDone();
+            
+            // Only mark as fired if dialog 11 was successfully triggered
+            // This allows re-triggering if seeds weren't ready yet
+            // We'll check if dialog 11 was played by checking if it's no longer waiting
+            // For now, we'll allow multiple triggers - the manager will handle the logic
+        }
+        else
+        {
+            Debug.LogError($"[WateringZoneTrigger] Manager is null! Cannot notify watering done.");
+        }
     }
 }

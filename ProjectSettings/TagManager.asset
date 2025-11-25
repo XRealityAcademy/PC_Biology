@@ -17,6 +17,8 @@ TagManager:
   - Seed
   - PlantSoil
   - Fairy
+  - CompoundX
+  - Pot
   layers:
   - Default
   - TransparentFX
@@ -25,7 +27,7 @@ TagManager:
   - Water
   - UI
   - DialogTrigger
-  - 
+  - whatIsGround
   - 
   - 
   - 

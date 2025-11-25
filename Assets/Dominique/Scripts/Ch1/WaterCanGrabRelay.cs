@@ -6,7 +6,7 @@ public class WaterCanGrabRelay : MonoBehaviour
 
     void Awake()
     {
-        if (!manager) manager = FindObjectOfType<Manager_Ch1>();
+        if (!manager) manager = FindFirstObjectByType<Manager_Ch1>();
     }
 
     // Hook this to XR Interaction Toolkit "Select Entered" event on the watering can
